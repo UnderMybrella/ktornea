@@ -12,7 +12,7 @@ apply(plugin = "kotlinx-atomicfu")
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.0.0"
+version = "1.0.0-alpha"
 
 repositories {
     mavenCentral()
@@ -39,14 +39,14 @@ kotlin {
             }
         }
     }
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> macosX64("native")
-        hostOs == "Linux" -> linuxX64("native")
-        isMingwX64 -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
-    }
+//    val hostOs = System.getProperty("os.name")
+//    val isMingwX64 = hostOs.startsWith("Windows")
+//    val nativeTarget = when {
+//        hostOs == "Mac OS X" -> macosX64("native")
+//        hostOs == "Linux" -> linuxX64("native")
+//        isMingwX64 -> mingwX64("native")
+//        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+//    }
 
     sourceSets {
         val commonMain by getting {
@@ -54,7 +54,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:1.5.0")
                 implementation("io.ktor:ktor-client-serialization:1.5.0")
 
-                implementation("dev.brella:kornea-io:5.1.3-alpha")
+                implementation("dev.brella:kornea-io:5.2.0-alpha")
 
                 implementation("org.jetbrains.kotlinx:atomicfu:0.15.1")
             }
