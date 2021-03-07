@@ -10,7 +10,6 @@ import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.concurrent.*
 import io.ktor.utils.io.core.internal.*
-import kotlinx.atomicfu.atomic
 import kotlin.native.concurrent.ThreadLocal
 
 @ThreadLocal
@@ -19,49 +18,50 @@ private val ALLOWED_FOR_REDIRECT: Set<HttpMethod> = setOf(HttpMethod.Get, HttpMe
 /**
  * [HttpClient] feature that handles http redirect
  */
-public class GranularHttpRedirect {
-    private val _checkHttpMethod = atomic(true)
-    private val _allowHttpsDowngrade = atomic(false)
+public class GranularHttpRedirect(val enabled: Boolean?, val checkHttpMethod: Boolean?, val allowHttpsDowngrade: Boolean?) {
+    @OptIn(DangerousInternalIoApi::class)
+    public class Config {
+        companion object : BasicAttributeKeyProvider<Config>("GranularHttpRedirectConfig")
 
-    /**
-     * Check if the HTTP method is allowed for redirect.
-     * Only [HttpMethod.Get] and [HttpMethod.Head] is allowed for implicit redirect.
-     *
-     * Please note: changing this flag could lead to security issues, consider changing the request URL instead.
-     */
-    public var checkHttpMethod: Boolean
-        get() = _checkHttpMethod.value
-        set(value) {
-            _checkHttpMethod.value = value
-        }
+        var enabled: Boolean? by shared(null)
 
-    /**
-     * `true` value allows client redirect with downgrade from https to plain http.
-     */
-    public var allowHttpsDowngrade: Boolean
-        get() = _allowHttpsDowngrade.value
-        set(value) {
-            _allowHttpsDowngrade.value = value
-        }
+        /**
+         * Check if the HTTP method is allowed for redirect.
+         * Only [HttpMethod.Get] and [HttpMethod.Head] is allowed for implicit redirect.
+         *
+         * Please note: changing this flag could lead to security issues, consider changing the request URL instead.
+         */
+        var checkHttpMethod: Boolean? by shared(null)
 
-    public data class GranularHttpRedirectCapability(val enabled: Boolean? = null, val checkHttpMethod: Boolean? = null, val allowHttpsDowngrade: Boolean? = null)
+        /**
+         * `true` value allows client redirect with downgrade from https to plain http.
+         */
+        var allowHttpsDowngrade: Boolean? by shared(null)
 
-    public companion object Feature : HttpClientFeature<GranularHttpRedirect, GranularHttpRedirect>, HttpClientEngineCapability<GranularHttpRedirectCapability> {
-        override val key: AttributeKey<GranularHttpRedirect> = AttributeKey("HttpRedirect")
+        constructor(enabled: Boolean? = null, checkHttpMethod: Boolean? = null, allowHttpsDowngrade: Boolean? = null)
 
-        override fun prepare(block: GranularHttpRedirect.() -> Unit): GranularHttpRedirect = GranularHttpRedirect().apply(block)
+        inline fun build() = GranularHttpRedirect(enabled, checkHttpMethod, allowHttpsDowngrade)
+    }
+
+    public companion object Feature : HttpClientFeature<Config, GranularHttpRedirect>, HttpClientEngineCapability<Config> {
+        public const val DEFAULT_CHECK_HTTP_METHOD = true
+        public const val DEFAULT_ALLOW_HTTPS_DOWNGRADE = false
+
+        override val key: AttributeKey<GranularHttpRedirect> = AttributeKey("GranularHttpRedirect")
+
+        override fun prepare(block: Config.() -> Unit): GranularHttpRedirect = Config().apply(block).build()
 
         @InternalAPI
         override fun install(feature: GranularHttpRedirect, scope: HttpClient) {
             scope[HttpSend].intercept { origin, context ->
-                val capability = context.getCapabilityOrNull(this@Feature)
+                val capability = context.attributes.getOrNull(Config)
                 if (capability?.enabled == false) return@intercept origin
 
-                if ((capability?.checkHttpMethod ?: feature.checkHttpMethod) && origin.request.method !in ALLOWED_FOR_REDIRECT) {
+                if ((capability?.checkHttpMethod ?: feature.checkHttpMethod ?: DEFAULT_CHECK_HTTP_METHOD) && origin.request.method !in ALLOWED_FOR_REDIRECT) {
                     return@intercept origin
                 }
 
-                handleCall(context, origin, (capability?.allowHttpsDowngrade ?: feature.allowHttpsDowngrade))
+                handleCall(context, origin, (capability?.allowHttpsDowngrade ?: feature.allowHttpsDowngrade ?: DEFAULT_ALLOW_HTTPS_DOWNGRADE))
             }
         }
 
@@ -115,6 +115,39 @@ private fun HttpStatusCode.isRedirect(): Boolean = when (value) {
     else -> false
 }
 
+inline var Attributes.granularHttpRedirect
+    get() = getOrNull(GranularHttpRedirect.Config)
+    set(value) = value?.let { put(GranularHttpRedirect.Config, it) } ?: remove(GranularHttpRedirect.Config)
+
+inline fun Attributes.granularHttpRedirect(configure: GranularHttpRedirect.Config.() -> Unit) {
+    getOrNull(GranularHttpRedirect.Config, configure) ?: put(GranularHttpRedirect.Config, GranularHttpRedirect.Config().apply(configure))
+}
+
+inline fun <T : HttpClientEngineConfig> HttpClientConfig<T>.installGranularHttp(noinline block: GranularHttpRedirect.Config.() -> Unit = {}) {
+    followRedirects = false
+
+    install(GranularHttpRedirect, block)
+}
+
+inline fun <T : HttpClientEngineConfig> HttpClientConfig<T>.installGranularHttp(checkHttpMethod: Boolean? = null, allowHttpsDowngrade: Boolean?) {
+    followRedirects = false
+
+    install(GranularHttpRedirect) {
+        checkHttpMethod?.let { this.checkHttpMethod = it }
+        allowHttpsDowngrade?.let { this.allowHttpsDowngrade = it }
+    }
+}
+
+inline fun HttpRequestBuilder.httpRedirect(enabled: Boolean? = null, checkHttpMethod: Boolean? = null, allowHttpsDowngrade: Boolean? = null) =
+    attributes.granularHttpRedirect {
+        enabled?.let { this.enabled = it }
+        checkHttpMethod?.let { this.checkHttpMethod = it }
+        allowHttpsDowngrade?.let { this.allowHttpsDowngrade = it }
+    }
+
+inline fun HttpRequestBuilder.httpRedirect(block: GranularHttpRedirect.Config.() -> Unit) =
+    attributes.granularHttpRedirect(block)
+
 @KtorExperimentalAPI
 @InternalAPI
 suspend fun HttpClient.handleRedirect(
@@ -122,13 +155,14 @@ suspend fun HttpClient.handleRedirect(
     contextBuilder: HttpRequestBuilder.() -> Unit
 ): HttpClientCall {
     val context = HttpRequestBuilder().apply(contextBuilder)
+
     @Suppress("DEPRECATION_ERROR")
     val origin = execute(context)
 
     if (!origin.response.status.isRedirect()) return origin
 
     val allowHttpsDowngrade = allowHttpsDowngrade
-                              ?: context.getCapabilityOrNull(GranularHttpRedirect)?.allowHttpsDowngrade
+                              ?: context.attributes.getOrNull(GranularHttpRedirect.Config)?.allowHttpsDowngrade
                               ?: feature(GranularHttpRedirect)?.allowHttpsDowngrade
                               ?: false
 
