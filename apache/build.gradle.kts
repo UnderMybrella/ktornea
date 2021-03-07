@@ -6,6 +6,7 @@ apply(plugin = "kotlinx-atomicfu")
 apply(plugin = "maven-publish")
 
 version = "1.0.0-alpha"
+group = "dev.brella"
 
 repositories {
     mavenCentral()
@@ -33,5 +34,12 @@ configure<kotlinx.atomicfu.plugin.gradle.AtomicFUPluginExtension> {
 configure<PublishingExtension> {
     repositories {
         maven(url = "${rootProject.buildDir}/repo")
+    }
+
+    publications {
+        create<MavenPublication>("jvm") {
+            artifact(tasks.jar)
+            artifact(tasks.kotlinSourcesJar)
+        }
     }
 }
