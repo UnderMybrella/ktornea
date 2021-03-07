@@ -89,3 +89,9 @@ kotlin {
 configure<kotlinx.atomicfu.plugin.gradle.AtomicFUPluginExtension> {
     dependenciesVersion = null
 }
+
+configure<PublishingExtension> {
+    repositories {
+        maven(url = "${rootProject.buildDir}/repo")
+    }
+}
