@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":utils"))
+    implementation(project(":ktornea-utils"))
 
     implementation("io.ktor:ktor-client-core:1.5.0")
     implementation("io.ktor:ktor-client-serialization:1.5.0")
