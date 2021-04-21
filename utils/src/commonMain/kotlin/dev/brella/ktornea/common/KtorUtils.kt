@@ -13,6 +13,7 @@ import io.ktor.http.*
 import io.ktor.util.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -289,6 +290,169 @@ suspend inline fun HttpClient.stream(builder: HttpRequestBuilder.() -> Unit): Fl
             response.cleanup()
         }
     }
+
+@OptIn(ExperimentalCoroutinesApi::class)
+suspend inline fun HttpClient.streamAsResult(builder: HttpRequestBuilder.() -> Unit): KorneaResult<Flow<String>> {
+    try {
+        val call = executeStatement {
+            builder()
+            expectSuccess = false
+        }
+
+        val response = call.response
+
+        return when (response.status) {
+            HttpStatusCode.OK,
+            HttpStatusCode.Created,
+            HttpStatusCode.NonAuthoritativeInformation -> {
+                val flow = channelFlow<String> {
+                    val pool = BinaryDataPool(null, null, 1)
+                    val content = response.content
+                    val buffer = ByteArray(8192)
+
+                    val binaryInput = pool.openInputFlow().get()
+                    val binaryOutput = pool.openOutputFlow().get()
+
+                    val readContent = launch {
+                        while (isActive && !content.isClosedForRead) {
+                            if (content.availableForRead > 0) {
+                                val read = content.readAvailable(buffer)
+                                binaryOutput.write(buffer, 0, read)
+                            }
+
+                            yield()
+                        }
+                    }
+
+                    val writeContent = launch {
+                        val content = content
+                        val builder = StringBuilder()
+                        var c: Char?
+
+                        while (isActive) {
+                            c = binaryInput.readUtf8Character()
+
+                            when (c) {
+                                null -> {
+                                    if (!readContent.isActive) {
+                                        if (builder.isNotBlank()) send(builder.clearToString())
+                                        break
+                                    }
+
+                                    yield()
+                                    continue
+                                }
+                                '\n' -> if (builder.isNotBlank()) send(builder.clearToString())
+                                else -> builder.append(c)
+                            }
+                        }
+                    }
+
+                    joinAll(readContent, writeContent)
+
+                    response.cleanup()
+                }
+
+                when (response.status) {
+                    HttpStatusCode.OK -> KorneaHttpResult.Success.OK(flow, response)
+                    HttpStatusCode.Created -> KorneaHttpResult.Success.Created(flow, response)
+                    HttpStatusCode.NonAuthoritativeInformation -> KorneaHttpResult.Success.NonAuthoritativeInformation(flow, response)
+
+                    else -> TODO("Status: ${response.status}")
+                }
+            }
+
+            else -> try {
+                when (response.status) {
+                    HttpStatusCode.Continue -> KorneaHttpResult.Informational.Continue(response)
+                    HttpStatusCode.SwitchingProtocols -> KorneaHttpResult.Informational.SwitchingProtocol(response)
+                    HttpStatusCode.Processing -> KorneaHttpResult.Informational.Processing(response)
+
+                    HttpStatusCode.Accepted -> KorneaHttpResult.Success.Accepted(response)
+                    HttpStatusCode.NoContent -> KorneaHttpResult.Success.NoContent(response)
+                    HttpStatusCode.ResetContent -> KorneaHttpResult.Success.ResetContent(response)
+                    HttpStatusCode.PartialContent -> KorneaHttpResult.Success.PartialContent(response)
+
+                    HttpStatusCode.MultipleChoices -> KorneaHttpResult.Redirection.MultipleChoices(response)
+                    HttpStatusCode.MovedPermanently -> KorneaHttpResult.Redirection.MovedPermanently(response)
+                    HttpStatusCode.Found -> KorneaHttpResult.Redirection.Found(response)
+                    HttpStatusCode.SeeOther -> KorneaHttpResult.Redirection.SeeOther(response)
+                    HttpStatusCode.NotModified -> KorneaHttpResult.Redirection.NotModified(response)
+                    HttpStatusCode.UseProxy -> KorneaHttpResult.Redirection.UseProxy(response)
+                    HttpStatusCode.TemporaryRedirect -> KorneaHttpResult.Redirection.TemporaryRedirect(response)
+                    HttpStatusCode.PermanentRedirect -> KorneaHttpResult.Redirection.PermanentRedirect(response)
+
+                    HttpStatusCode.BadRequest -> KorneaHttpResult.ClientError.BadRequest(response)
+                    HttpStatusCode.Unauthorized -> KorneaHttpResult.ClientError.Unauthorized(response)
+                    HttpStatusCode.PaymentRequired -> KorneaHttpResult.ClientError.PaymentRequired(response)
+                    HttpStatusCode.Forbidden -> KorneaHttpResult.ClientError.Forbidden(response)
+                    HttpStatusCode.NotFound -> KorneaHttpResult.ClientError.NotFound(response)
+                    HttpStatusCode.MethodNotAllowed -> KorneaHttpResult.ClientError.MethodNotAllowed(response)
+                    HttpStatusCode.NotAcceptable -> KorneaHttpResult.ClientError.NotAcceptable(response)
+                    HttpStatusCode.ProxyAuthenticationRequired -> KorneaHttpResult.ClientError.ProxyAuthenticationRequired(response)
+                    HttpStatusCode.RequestTimeout -> KorneaHttpResult.ClientError.RequestTimeout(response)
+                    HttpStatusCode.Conflict -> KorneaHttpResult.ClientError.Conflict(response)
+                    HttpStatusCode.Gone -> KorneaHttpResult.ClientError.Gone(response)
+                    HttpStatusCode.LengthRequired -> KorneaHttpResult.ClientError.LengthRequired(response)
+                    HttpStatusCode.PreconditionFailed -> KorneaHttpResult.ClientError.PreconditionFailed(response)
+                    HttpStatusCode.RequestURITooLong -> KorneaHttpResult.ClientError.RequestURITooLong(response)
+                    HttpStatusCode.UnsupportedMediaType -> KorneaHttpResult.ClientError.UnsupportedMediaType(response)
+                    HttpStatusCode.RequestedRangeNotSatisfiable -> KorneaHttpResult.ClientError.RequestedRangeNotSatisfiable(response)
+                    HttpStatusCode.ExpectationFailed -> KorneaHttpResult.ClientError.ExpectationFailed(response)
+                    HttpStatusCode.UnprocessableEntity -> KorneaHttpResult.ClientError.UnprocessableEntity(response)
+                    HttpStatusCode.Locked -> KorneaHttpResult.ClientError.Locked(response)
+                    HttpStatusCode.FailedDependency -> KorneaHttpResult.ClientError.FailedDependency(response)
+                    HttpStatusCode.UpgradeRequired -> KorneaHttpResult.ClientError.UpgradeRequired(response)
+                    HttpStatusCode.PreconditionFailed -> KorneaHttpResult.ClientError.PreconditionFailed(response)
+                    HttpStatusCode.TooManyRequests -> KorneaHttpResult.ClientError.TooManyRequests(response)
+                    HttpStatusCode.RequestHeaderFieldTooLarge -> KorneaHttpResult.ClientError.RequestHeaderFieldsTooLarge(response)
+
+                    HttpStatusCode.InternalServerError -> KorneaHttpResult.ServerError.InternalServerError(response)
+                    HttpStatusCode.NotImplemented -> KorneaHttpResult.ServerError.NotImplemented(response)
+                    HttpStatusCode.BadGateway -> KorneaHttpResult.ServerError.BadGateway(response)
+                    HttpStatusCode.ServiceUnavailable -> KorneaHttpResult.ServerError.ServiceUnavailable(response)
+                    HttpStatusCode.GatewayTimeout -> KorneaHttpResult.ServerError.GatewayTimeout(response)
+                    HttpStatusCode.VariantAlsoNegotiates -> KorneaHttpResult.ServerError.VariantAlsoNegotiates(response)
+                    HttpStatusCode.InsufficientStorage -> KorneaHttpResult.ServerError.InsufficientStorage(response)
+
+                    else -> when (response.status.value) {
+                        306 -> KorneaHttpResult.Redirection.Unused(response)
+
+                        413 -> KorneaHttpResult.ClientError.RequestEntityTooLarge(response)
+                        418 -> KorneaHttpResult.ClientError.ImATeapot(response)
+                        420 -> KorneaHttpResult.ClientError.EnhanceYourCalm(response)
+                        425 -> KorneaHttpResult.ClientError.ReservedForWebDAV(response)
+                        428 -> KorneaHttpResult.ClientError.PreconditionRequired(response)
+                        444 -> KorneaHttpResult.ClientError.NoResponse(response)
+                        449 -> KorneaHttpResult.ClientError.RetryWith(response)
+                        450 -> KorneaHttpResult.ClientError.BlockedByWindowsParentalControls(response)
+                        451 -> KorneaHttpResult.ClientError.UnavailableForLegalReasons(response)
+                        499 -> KorneaHttpResult.ClientError.ClientClosedRequest(response)
+
+                        505 -> KorneaHttpResult.ServerError.HTTPVersionNotSupported(response)
+                        508 -> KorneaHttpResult.ServerError.LoopDetected(response)
+                        509 -> KorneaHttpResult.ServerError.BandwidthLimitExceeded(response)
+                        510 -> KorneaHttpResult.ServerError.NotExtended(response)
+                        598 -> KorneaHttpResult.ServerError.NetworkReadTimeoutError(response)
+                        599 -> KorneaHttpResult.ServerError.NetworkConnectTimeoutError(response)
+
+                        in INFORMATIONAL_RANGE -> KorneaHttpResult.Informational.Other(response)
+                        in SUCCESS_RANGE -> KorneaHttpResult.Success.Other(response)
+                        in REDIRECTION_RANGE -> KorneaHttpResult.Redirection.Other(response)
+                        in CLIENT_ERROR_RANGE -> KorneaHttpResult.ClientError.Other(response)
+                        in SERVER_ERROR_RANGE -> KorneaHttpResult.ServerError.Other(response)
+
+                        else -> KorneaHttpResult.Other(response)
+                    }
+                }
+            } finally {
+                response.cleanup()
+            }
+        }
+    } catch (th: Throwable) {
+        return KorneaResult.thrown(th)
+    }
+}
 
 suspend fun InputFlow.readUtf8Character(): Char? {
     val a = read() ?: return null
