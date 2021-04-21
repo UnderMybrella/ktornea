@@ -50,43 +50,43 @@ val REDIRECTION_RANGE = 300..399
 val CLIENT_ERROR_RANGE = 400..499
 val SERVER_ERROR_RANGE = 500..599
 
-suspend inline fun <reified T> HttpClient.getAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.getAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     getAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.headAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.headAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     headAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.deleteAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.deleteAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     deleteAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.optionsAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.optionsAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     optionsAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.patchAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.patchAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     patchAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.postAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.postAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     postAsResult {
         url(url)
         builder()
     }
 
-suspend inline fun <reified T> HttpClient.putAsResult(url: String, builder: HttpRequestBuilder.() -> Unit): KorneaResult<T> =
+suspend inline fun <reified T> HttpClient.putAsResult(url: String, builder: HttpRequestBuilder.() -> Unit = {}): KorneaResult<T> =
     putAsResult {
         url(url)
         builder()
