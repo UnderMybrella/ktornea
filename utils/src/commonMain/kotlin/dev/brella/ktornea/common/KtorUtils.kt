@@ -243,49 +243,11 @@ suspend inline fun HttpClient.stream(builder: HttpRequestBuilder.() -> Unit): Fl
             response.cleanup()
             return@let null
         } else channelFlow<String> {
-            val pool = BinaryDataPool(null, null, 1)
             val content = response.content
-            val buffer = ByteArray(8192)
 
-            val binaryInput = pool.openInputFlow().get()
-            val binaryOutput = pool.openOutputFlow().get()
-
-            val readContent = launch {
-                while (isActive && !content.isClosedForRead) {
-                    if (content.availableForRead > 0) {
-                        val read = content.readAvailable(buffer)
-                        binaryOutput.write(buffer, 0, read)
-                    }
-
-                    yield()
-                }
+            while (isActive && !content.isClosedForRead) {
+                content.readUTF8Line()?.let { send(it) }
             }
-
-            val writeContent = launch {
-                val content = content
-                val builder = StringBuilder()
-                var c: Char?
-
-                while (isActive) {
-                    c = binaryInput.readUtf8Character()
-
-                    when (c) {
-                        null -> {
-                            if (!readContent.isActive) {
-                                if (builder.isNotBlank()) send(builder.clearToString())
-                                break
-                            }
-
-                            yield()
-                            continue
-                        }
-                        '\n' -> if (builder.isNotBlank()) send(builder.clearToString())
-                        else -> builder.append(c)
-                    }
-                }
-            }
-
-            joinAll(readContent, writeContent)
 
             response.cleanup()
         }
@@ -306,49 +268,11 @@ suspend inline fun HttpClient.streamAsResult(builder: HttpRequestBuilder.() -> U
             HttpStatusCode.Created,
             HttpStatusCode.NonAuthoritativeInformation -> {
                 val flow = channelFlow<String> {
-                    val pool = BinaryDataPool(null, null, 1)
                     val content = response.content
-                    val buffer = ByteArray(8192)
 
-                    val binaryInput = pool.openInputFlow().get()
-                    val binaryOutput = pool.openOutputFlow().get()
-
-                    val readContent = launch {
-                        while (isActive && !content.isClosedForRead) {
-                            if (content.availableForRead > 0) {
-                                val read = content.readAvailable(buffer)
-                                binaryOutput.write(buffer, 0, read)
-                            }
-
-                            yield()
-                        }
+                    while (isActive && !content.isClosedForRead) {
+                        content.readUTF8Line()?.let { send(it) }
                     }
-
-                    val writeContent = launch {
-                        val content = content
-                        val builder = StringBuilder()
-                        var c: Char?
-
-                        while (isActive) {
-                            c = binaryInput.readUtf8Character()
-
-                            when (c) {
-                                null -> {
-                                    if (!readContent.isActive) {
-                                        if (builder.isNotBlank()) send(builder.clearToString())
-                                        break
-                                    }
-
-                                    yield()
-                                    continue
-                                }
-                                '\n' -> if (builder.isNotBlank()) send(builder.clearToString())
-                                else -> builder.append(c)
-                            }
-                        }
-                    }
-
-                    joinAll(readContent, writeContent)
 
                     response.cleanup()
                 }
