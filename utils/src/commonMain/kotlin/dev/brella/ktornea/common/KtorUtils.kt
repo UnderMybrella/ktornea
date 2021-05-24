@@ -32,7 +32,7 @@ suspend inline fun HttpClient.executeStatement(builder: HttpRequestBuilder.() ->
 /**
  * Complete [HttpResponse] and release resources.
  */
-suspend fun HttpResponse.cleanup() {
+suspend fun HttpResponse.cleanupAndJoin() {
     val job = coroutineContext[Job]!! as CompletableJob
 
     job.apply {
@@ -44,6 +44,25 @@ suspend fun HttpResponse.cleanup() {
         join()
     }
 }
+
+
+/**
+ * Complete [HttpResponse] and release resources.
+ */
+fun HttpResponse.cleanup() {
+    val job = coroutineContext[Job]!! as CompletableJob
+
+    job.apply {
+        complete()
+        try {
+            content.cancel()
+        } catch (_: Throwable) {
+        }
+    }
+}
+
+fun HttpResponse.isComplete(): Boolean? =
+    (coroutineContext[Job] as? CompletableJob)?.isCompleted
 
 val INFORMATIONAL_RANGE = 100..199
 val SUCCESS_RANGE = 200..299
@@ -180,7 +199,7 @@ suspend inline fun <reified T> HttpClient.responseAsResult(builder: HttpRequestB
             HttpStatusCode.Gone -> KorneaHttpResult.ClientError.Gone(response)
             HttpStatusCode.LengthRequired -> KorneaHttpResult.ClientError.LengthRequired(response)
             HttpStatusCode.PreconditionFailed -> KorneaHttpResult.ClientError.PreconditionFailed(response)
-            HttpStatusCode.RequestURITooLong -> KorneaHttpResult.ClientError.RequestURITooLong(response)
+            HttpStatusCode.RequestURITooLong -> KorneaHttpResult.ClientError.RequestUriTooLong(response)
             HttpStatusCode.UnsupportedMediaType -> KorneaHttpResult.ClientError.UnsupportedMediaType(response)
             HttpStatusCode.RequestedRangeNotSatisfiable -> KorneaHttpResult.ClientError.RequestedRangeNotSatisfiable(response)
             HttpStatusCode.ExpectationFailed -> KorneaHttpResult.ClientError.ExpectationFailed(response)
@@ -319,7 +338,7 @@ suspend inline fun HttpClient.streamAsResult(builder: HttpRequestBuilder.() -> U
                     HttpStatusCode.Gone -> KorneaHttpResult.ClientError.Gone(response)
                     HttpStatusCode.LengthRequired -> KorneaHttpResult.ClientError.LengthRequired(response)
                     HttpStatusCode.PreconditionFailed -> KorneaHttpResult.ClientError.PreconditionFailed(response)
-                    HttpStatusCode.RequestURITooLong -> KorneaHttpResult.ClientError.RequestURITooLong(response)
+                    HttpStatusCode.RequestURITooLong -> KorneaHttpResult.ClientError.RequestUriTooLong(response)
                     HttpStatusCode.UnsupportedMediaType -> KorneaHttpResult.ClientError.UnsupportedMediaType(response)
                     HttpStatusCode.RequestedRangeNotSatisfiable -> KorneaHttpResult.ClientError.RequestedRangeNotSatisfiable(response)
                     HttpStatusCode.ExpectationFailed -> KorneaHttpResult.ClientError.ExpectationFailed(response)

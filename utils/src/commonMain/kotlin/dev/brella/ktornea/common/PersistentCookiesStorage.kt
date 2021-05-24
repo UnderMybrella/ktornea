@@ -1,11 +1,9 @@
 package dev.brella.ktornea.common
 
-import dev.brella.kornea.errors.common.map
+import dev.brella.kornea.errors.common.useAndMap
 import dev.brella.kornea.io.common.DataPool
 import dev.brella.kornea.io.common.flow.readBytes
-import dev.brella.kornea.toolkit.common.PrintFlow
 import dev.brella.kornea.toolkit.common.SuspendInit0
-import dev.brella.kornea.toolkit.common.useAndMap
 import io.ktor.client.features.cookies.*
 import io.ktor.http.*
 import io.ktor.util.*
@@ -67,6 +65,7 @@ class PersistentCookiesStorage(private val pool: DataPool<*, *>) : CookiesStorag
 
     override fun close() {}
 
+    @OptIn(ExperimentalUnsignedTypes::class)
     @KtorExperimentalAPI
     override suspend fun init() {
         pool.openInputFlow().useAndMap { flow ->

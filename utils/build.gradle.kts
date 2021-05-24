@@ -6,7 +6,7 @@ apply(plugin = "kotlinx-atomicfu")
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.2.3-alpha"
+version = "1.3.0-alpha"
 
 repositories {
     mavenCentral()
@@ -45,12 +45,12 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-core:1.5.0")
-                implementation("io.ktor:ktor-client-serialization:1.5.0")
+                implementation("io.ktor:ktor-client-core:1.5.4")
+                implementation("io.ktor:ktor-client-serialization:1.5.4")
 
-                implementation("dev.brella:kornea-io:5.2.0-alpha")
+                implementation("dev.brella:kornea-io:5.3.0-alpha")
 
-                implementation("org.jetbrains.kotlinx:atomicfu:0.15.1")
+                implementation("org.jetbrains.kotlinx:atomicfu:0.16.1")
             }
         }
         val commonTest by getting {
@@ -61,7 +61,7 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-apache:1.5.0")
+//                implementation("io.ktor:ktor-client-apache:1.5.4")
             }
         }
         val jvmTest by getting {
