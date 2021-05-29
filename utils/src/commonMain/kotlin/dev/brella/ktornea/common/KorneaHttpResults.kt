@@ -6,6 +6,7 @@ import dev.brella.kornea.base.common.RingBuffer
 import dev.brella.kornea.base.common.doOnPresent
 import dev.brella.kornea.base.common.empty
 import dev.brella.kornea.base.common.getOrElseRun
+import dev.brella.kornea.base.common.getOrNull
 import dev.brella.kornea.base.common.map
 import dev.brella.kornea.base.common.of
 import dev.brella.kornea.errors.common.KorneaResult
@@ -955,10 +956,10 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     }
 
     override fun dataHashCode(): Optional<Int> =
-        if (_response.isComplete() != false) Optional.empty() else Optional.of(_response.hashCode())
+        Optional.of(_response.hashCode())
 
     override fun isAvailable(dataHashCode: Int?): Boolean? =
-        if (dataHashCode?.equals(_response.hashCode()) != false) _response.isComplete() else null
+        dataHashCode().map { if (dataHashCode?.equals(it) != false) true else null }.getOrNull()
 
     override fun consume(dataHashCode: Int?) {
         dataHashCode().doOnPresent { code ->
