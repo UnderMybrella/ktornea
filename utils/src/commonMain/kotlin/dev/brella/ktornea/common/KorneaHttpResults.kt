@@ -12,6 +12,7 @@ import dev.brella.kornea.base.common.of
 import dev.brella.kornea.errors.common.KorneaResult
 import io.ktor.client.statement.*
 import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.loop
 
 sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     companion object DefaultPools {
@@ -964,8 +965,7 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     override fun consume(dataHashCode: Int?) {
         dataHashCode().doOnPresent { code ->
             if (dataHashCode?.equals(code) != false) {
-                latch -= 1
-                if (latch == 0) {
+                if (_latch.decrementAndGet() <= 0) {
                     _response.cleanup()
                     push()
                 }
