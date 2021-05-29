@@ -107,7 +107,8 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     internal abstract var _response: HttpResponse
     val response: HttpResponse by ::_response
 
-    protected var latch = atomic(1)
+    private final val _latch = atomic(1)
+    protected var latch by _latch
 
     sealed class Informational : KorneaHttpResult<Nothing>(), KorneaResult.Empty {
         companion object {
@@ -206,11 +207,11 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class OK<T> internal constructor(private var value: Any?, override var _response: HttpResponse, internal val returnTo: RingBuffer<OK<Any?>>) : KorneaResult.Success<T>, Success<T>() {
             override fun get(): T = if (value === IDLE) throw IllegalStateException("PooledResult<T> was closed") else value as T
             override fun <R> mapValue(newValue: R): KorneaResult<R> =
-                if (latch.value <= 1) {
+                if (latch <= 1) {
                     this.value = newValue
                     this as KorneaResult<R>
                 } else {
-                    latch.value -= 1
+                    latch -= 1
                     OK(newValue, _response, returnTo)
                 }
 
@@ -233,11 +234,11 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class Created<T> internal constructor(private var value: Any?, override var _response: HttpResponse, internal val returnTo: RingBuffer<Created<Any?>>) : KorneaResult.Success<T>, Success<T>() {
             override fun get(): T = if (value === IDLE) throw IllegalStateException("PooledResult<T> was closed") else value as T
             override fun <R> mapValue(newValue: R): KorneaResult<R> =
-                if (latch.value <= 1) {
+                if (latch <= 1) {
                     this.value = newValue
                     this as KorneaResult<R>
                 } else {
-                    latch.value -= 1
+                    latch -= 1
                     Created(newValue, _response, returnTo)
                 }
 
@@ -277,11 +278,11 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
 
             //                if (value === IDLE) return KorneaResult.Empty.ofClosed()
             override fun <R> mapValue(newValue: R): KorneaResult<R> =
-                if (latch.value <= 1) {
+                if (latch <= 1) {
                     this.value = newValue
                     this as KorneaResult<R>
                 } else {
-                    latch.value -= 1
+                    latch -= 1
                     NonAuthoritativeInformation(newValue, _response, returnTo)
                 }
 
@@ -963,7 +964,7 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         dataHashCode().doOnPresent { code ->
             if (dataHashCode?.equals(code) != false) {
                 latch -= 1
-                if (latch.value == 0) {
+                if (latch == 0) {
                     _response.cleanup()
                     push()
                 }
