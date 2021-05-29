@@ -10,6 +10,7 @@ import dev.brella.kornea.base.common.map
 import dev.brella.kornea.base.common.of
 import dev.brella.kornea.errors.common.KorneaResult
 import io.ktor.client.statement.*
+import kotlinx.atomicfu.atomic
 
 sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     companion object DefaultPools {
@@ -106,6 +107,8 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     internal abstract var _response: HttpResponse
     val response: HttpResponse by ::_response
 
+    protected var latch = atomic(1)
+
     sealed class Informational : KorneaHttpResult<Nothing>(), KorneaResult.Empty {
         companion object {
             fun Continue(response: HttpResponse) =
@@ -132,12 +135,15 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class Continue internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Continue>) : Informational() {
             override fun push() = returnTo.push(this)
         }
+
         class SwitchingProtocol internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<SwitchingProtocol>) : Informational() {
             override fun push() = returnTo.push(this)
         }
+
         class Processing internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Processing>) : Informational() {
             override fun push() = returnTo.push(this)
         }
+
         class Other internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Other>) : Informational() {
             override fun push() = returnTo.push(this)
         }
@@ -199,11 +205,14 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
 
         class OK<T> internal constructor(private var value: Any?, override var _response: HttpResponse, internal val returnTo: RingBuffer<OK<Any?>>) : KorneaResult.Success<T>, Success<T>() {
             override fun get(): T = if (value === IDLE) throw IllegalStateException("PooledResult<T> was closed") else value as T
-            override fun <R> mapValue(newValue: R): KorneaResult<R> {
-                if (value === IDLE) return KorneaResult.Empty.ofClosed()
-                value = newValue
-                return this as KorneaResult.Success<R>
-            }
+            override fun <R> mapValue(newValue: R): KorneaResult<R> =
+                if (latch.value <= 1) {
+                    this.value = newValue
+                    this as KorneaResult<R>
+                } else {
+                    latch.value -= 1
+                    OK(newValue, _response, returnTo)
+                }
 
             fun <R> replace(newValue: R, newResponse: HttpResponse): OK<R> {
                 value = newValue
@@ -223,11 +232,14 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
 
         class Created<T> internal constructor(private var value: Any?, override var _response: HttpResponse, internal val returnTo: RingBuffer<Created<Any?>>) : KorneaResult.Success<T>, Success<T>() {
             override fun get(): T = if (value === IDLE) throw IllegalStateException("PooledResult<T> was closed") else value as T
-            override fun <R> mapValue(newValue: R): KorneaResult<R> {
-                if (value === IDLE) return KorneaResult.Empty.ofClosed()
-                value = newValue
-                return this as KorneaResult.Success<R>
-            }
+            override fun <R> mapValue(newValue: R): KorneaResult<R> =
+                if (latch.value <= 1) {
+                    this.value = newValue
+                    this as KorneaResult<R>
+                } else {
+                    latch.value -= 1
+                    Created(newValue, _response, returnTo)
+                }
 
             fun <R> replace(newValue: R, newResponse: HttpResponse): Created<R> {
                 value = newValue
@@ -262,11 +274,16 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
 
         class NonAuthoritativeInformation<T> internal constructor(private var value: Any?, override var _response: HttpResponse, internal val returnTo: RingBuffer<NonAuthoritativeInformation<Any?>>) : KorneaResult.Success<T>, Success<T>() {
             override fun get(): T = if (value === IDLE) throw IllegalStateException("PooledResult<T> was closed") else value as T
-            override fun <R> mapValue(newValue: R): KorneaResult<R> {
-                if (value === IDLE) return KorneaResult.Empty.ofClosed()
-                value = newValue
-                return this as KorneaResult.Success<R>
-            }
+
+            //                if (value === IDLE) return KorneaResult.Empty.ofClosed()
+            override fun <R> mapValue(newValue: R): KorneaResult<R> =
+                if (latch.value <= 1) {
+                    this.value = newValue
+                    this as KorneaResult<R>
+                } else {
+                    latch.value -= 1
+                    NonAuthoritativeInformation(newValue, _response, returnTo)
+                }
 
             fun <R> replace(newValue: R, newResponse: HttpResponse): NonAuthoritativeInformation<R> {
                 value = newValue
@@ -401,30 +418,39 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class MultipleChoices internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<MultipleChoices>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class MovedPermanently internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<MovedPermanently>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class Found internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Found>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class SeeOther internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<SeeOther>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class NotModified internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NotModified>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class UseProxy internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<UseProxy>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class Unused internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Unused>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class TemporaryRedirect internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<TemporaryRedirect>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class PermanentRedirect internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<PermanentRedirect>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
+
         class Other internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Other>) : Redirection() {
             override fun push() = returnTo.push(this)
         }
@@ -617,102 +643,135 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class BadRequest internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<BadRequest>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Unauthorized internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Unauthorized>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class PaymentRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<PaymentRequired>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Forbidden internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Forbidden>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class NotFound internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NotFound>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class MethodNotAllowed internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<MethodNotAllowed>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class NotAcceptable internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NotAcceptable>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class ProxyAuthenticationRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ProxyAuthenticationRequired>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RequestTimeout internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RequestTimeout>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Conflict internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Conflict>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Gone internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Gone>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class LengthRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<LengthRequired>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class PreconditionFailed internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<PreconditionFailed>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RequestEntityTooLarge internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RequestEntityTooLarge>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RequestURITooLong internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RequestURITooLong>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class UnsupportedMediaType internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<UnsupportedMediaType>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RequestedRangeNotSatisfiable internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RequestedRangeNotSatisfiable>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class ExpectationFailed internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ExpectationFailed>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class ImATeapot internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ImATeapot>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class EnhanceYourCalm internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<EnhanceYourCalm>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class UnprocessableEntity internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<UnprocessableEntity>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Locked internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Locked>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class FailedDependency internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<FailedDependency>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class ReservedForWebDAV internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ReservedForWebDAV>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class UpgradeRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<UpgradeRequired>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class PreconditionRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<PreconditionRequired>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class TooManyRequests internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<TooManyRequests>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RequestHeaderFieldsTooLarge internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RequestHeaderFieldsTooLarge>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class NoResponse internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NoResponse>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class RetryWith internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<RetryWith>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class BlockedByWindowsParentalControls internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<BlockedByWindowsParentalControls>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class UnavailableForLegalReasons internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<UnavailableForLegalReasons>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class ClientClosedRequest internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ClientClosedRequest>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
+
         class Other internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Other>) : ClientError() {
             override fun push() = returnTo.push(this)
         }
@@ -810,45 +869,59 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
         class InternalServerError internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<InternalServerError>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class NotImplemented internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NotImplemented>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class BadGateway internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<BadGateway>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class ServiceUnavailable internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<ServiceUnavailable>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class GatewayTimeout internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<GatewayTimeout>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class HTTPVersionNotSupported internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<HTTPVersionNotSupported>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class VariantAlsoNegotiates internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<VariantAlsoNegotiates>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class InsufficientStorage internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<InsufficientStorage>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class LoopDetected internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<LoopDetected>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class BandwidthLimitExceeded internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<BandwidthLimitExceeded>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class NotExtended internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NotExtended>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class NetworkAuthenticationRequired internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NetworkAuthenticationRequired>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class NetworkReadTimeoutError internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NetworkReadTimeoutError>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class NetworkConnectTimeoutError internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<NetworkConnectTimeoutError>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
+
         class Other internal constructor(override var _response: HttpResponse, internal val returnTo: RingBuffer<Other>) : ServerError() {
             override fun push() = returnTo.push(this)
         }
@@ -889,10 +962,19 @@ sealed class KorneaHttpResult<T>() : KorneaResult<T> {
     override fun consume(dataHashCode: Int?) {
         dataHashCode().doOnPresent { code ->
             if (dataHashCode?.equals(code) != false) {
-                _response.cleanup()
-                push()
+                latch -= 1
+                if (latch.value == 0) {
+                    _response.cleanup()
+                    push()
+                }
             }
         }
+    }
+
+    override fun copyOf(): KorneaResult<T> {
+        latch += 1
+
+        return this
     }
 
     abstract fun push()

@@ -6,7 +6,7 @@ apply(plugin = "kotlinx-atomicfu")
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.3.0-alpha"
+version = "1.3.1-alpha"
 
 repositories {
     mavenCentral()
@@ -48,7 +48,8 @@ kotlin {
                 implementation("io.ktor:ktor-client-core:1.5.4")
                 implementation("io.ktor:ktor-client-serialization:1.5.4")
 
-                implementation("dev.brella:kornea-io:5.3.0-alpha")
+                implementation("dev.brella:kornea-errors:2.2.0-alpha")
+                implementation("dev.brella:kornea-io:5.3.1-alpha")
 
                 implementation("org.jetbrains.kotlinx:atomicfu:0.16.1")
             }
