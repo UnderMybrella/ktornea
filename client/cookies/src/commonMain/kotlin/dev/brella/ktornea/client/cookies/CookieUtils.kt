@@ -1,9 +1,9 @@
-package dev.brella.ktornea.common
+package dev.brella.ktornea.client.cookies
 
 import io.ktor.http.*
 import io.ktor.util.*
 
-fun Cookie.fillDefaults(requestUrl: Url): Cookie {
+public fun Cookie.fillDefaults(requestUrl: Url): Cookie {
     var result = this
 
     if (result.path?.startsWith("/") != true) {
@@ -17,8 +17,7 @@ fun Cookie.fillDefaults(requestUrl: Url): Cookie {
     return result
 }
 
-@InternalAPI
-fun Cookie.matches(requestUrl: Url): Boolean {
+public fun Cookie.matches(requestUrl: Url): Boolean {
     val domain = domain?.toLowerCasePreservingASCIIRules()?.trimStart('.')
                  ?: error("Domain field should have the default value")
 

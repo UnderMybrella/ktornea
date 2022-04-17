@@ -1,17 +1,19 @@
+import dev.brella.kornea.gradle.projectFrom
+
 plugins {
     kotlin("multiplatform")
+    id("dev.brella.kornea")
 }
 
-apply(plugin = "kotlinx-atomicfu")
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.3.3-alpha"
+version = "1.0.0-alpha"
 
 repositories {
     mavenCentral()
     maven(url = "https://maven.brella.dev")
-    maven(url = "https://kotlin.bintray.com/ktor")
+//    maven(url = "https://kotlin.bintray.com/ktor")
 }
 
 kotlin {
@@ -23,7 +25,7 @@ kotlin {
             useJUnit()
         }
     }
-    js(LEGACY) {
+    js(BOTH) {
         browser {
             testTask {
                 useKarma {
@@ -45,13 +47,11 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-client-core:1.5.4")
-                implementation("io.ktor:ktor-client-serialization:1.5.4")
+//                api(project)
+//                api(projectFrom("client", "core"))
+                api(projectFrom("ktornea", "client", "core"))
 
-                implementation("dev.brella:kornea-errors:2.2.0-alpha")
-                implementation("dev.brella:kornea-io:5.3.1-alpha")
-
-                implementation("org.jetbrains.kotlinx:atomicfu:0.16.1")
+                implementation("dev.brella:kornea-errors:3.0.2-alpha")
             }
         }
         val commonTest by getting {
@@ -62,7 +62,6 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-//                implementation("io.ktor:ktor-client-apache:1.5.4")
             }
         }
         val jvmTest by getting {
@@ -76,17 +75,14 @@ kotlin {
                 implementation(kotlin("test-js"))
             }
         }
+
+        all {
+            languageSettings.apply {
+                optIn("kotlin.RequiresOptIn")
+                explicitApi()
+            }
+        }
 //        val nativeMain by getting
 //        val nativeTest by getting
-    }
-}
-
-configure<kotlinx.atomicfu.plugin.gradle.AtomicFUPluginExtension> {
-    dependenciesVersion = null
-}
-
-configure<PublishingExtension> {
-    repositories {
-        maven(url = "${rootProject.buildDir}/repo")
     }
 }
