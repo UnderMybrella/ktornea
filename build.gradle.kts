@@ -1,3 +1,4 @@
+import dev.brella.kornea.gradle.defineVersions
 import dev.brella.kornea.gradle.mavenBrella
 
 buildscript {
@@ -11,7 +12,7 @@ plugins {
     kotlin("jvm") version "1.6.20" apply false
     kotlin("plugin.serialization") version "1.6.20" apply false
 
-    id("dev.brella.kornea") version "1.0.5"
+    id("dev.brella.kornea") version "1.0.6"
 }
 
 allprojects {
@@ -34,3 +35,9 @@ configure(subprojects) {
         }
     }
 }
+
+// Dependencies
+defineVersions(
+    "ktor" to "2.0.0",
+    "kornea-errors" to "3.0.3-alpha"
+)

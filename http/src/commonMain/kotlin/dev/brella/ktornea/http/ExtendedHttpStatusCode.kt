@@ -1,4 +1,4 @@
-package dev.brella.ktornea.client
+package dev.brella.ktornea.http
 
 import io.ktor.http.*
 
