@@ -52,6 +52,8 @@ public val KorneaResultPages: ApplicationPlugin<KorneaResultPagesConfig> = creat
 
         if (!call.isHandled) defaultHandler?.invoke(call, failure)
         if (!call.isHandled) call.respondText("Unhandled failure of type ${failure} / ${failure::class}", status = HttpStatusCode.InternalServerError)
+
+        this.finish()
     }
 }
 
