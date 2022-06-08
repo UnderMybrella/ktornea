@@ -1,3 +1,4 @@
+import dev.brella.kornea.gradle.ktorModule
 import dev.brella.kornea.gradle.versioned
 
 plugins {
@@ -34,7 +35,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api(project(":ktornea-http"))
-                api(versioned("io.ktor:ktor-server-core", "ktor"))
+                api(ktorModule("server-core"))
             }
         }
         val commonTest by getting {

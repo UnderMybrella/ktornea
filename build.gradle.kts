@@ -12,7 +12,7 @@ plugins {
     kotlin("jvm") version "1.6.20" apply false
     kotlin("plugin.serialization") version "1.6.20" apply false
 
-    id("dev.brella.kornea") version "1.0.6"
+    id("dev.brella.kornea") version "1.2.1"
 }
 
 allprojects {
@@ -36,8 +36,8 @@ configure(subprojects) {
     }
 }
 
-// Dependencies
-defineVersions(
-    "ktor" to "2.0.0",
-    "kornea-errors" to "3.0.3-alpha"
-)
+defineVersions {
+    ktor("2.0.0")
+    korneaErrors("3.1.0-alpha")
+    korneaIO("5.5.1-alpha")
+}

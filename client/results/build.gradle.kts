@@ -1,4 +1,6 @@
+import dev.brella.kornea.gradle.korneaErrorsModule
 import dev.brella.kornea.gradle.projectFrom
+import dev.brella.kornea.gradle.versioned
 
 plugins {
     kotlin("multiplatform")
@@ -8,7 +10,7 @@ plugins {
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.0.0-alpha"
+version = "1.1.0-alpha"
 
 repositories {
     mavenCentral()
@@ -47,11 +49,9 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-//                api(project)
-//                api(projectFrom("client", "core"))
                 api(projectFrom("ktornea", "client", "core"))
 
-                implementation("dev.brella:kornea-errors:3.0.2-alpha")
+                implementation(korneaErrorsModule())
             }
         }
         val commonTest by getting {

@@ -1,3 +1,4 @@
+import dev.brella.kornea.gradle.korneaErrorsModule
 import dev.brella.kornea.gradle.projectFrom
 import dev.brella.kornea.gradle.versioned
 
@@ -38,11 +39,9 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-//                api(project)
-//                api(projectFrom("client", "core"))
                 api(projectFrom("ktornea", "server", "core"))
 
-                implementation(versioned("dev.brella:kornea-errors", "kornea-errors"))
+                implementation(korneaErrorsModule())
             }
         }
         val commonTest by getting {

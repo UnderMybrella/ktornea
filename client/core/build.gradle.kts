@@ -1,3 +1,7 @@
+import dev.brella.kornea.gradle.ktorModule
+import dev.brella.kornea.gradle.projectFrom
+import dev.brella.kornea.gradle.versioned
+
 plugins {
     kotlin("multiplatform")
 }
@@ -12,6 +16,7 @@ repositories {
     maven(url = "https://maven.brella.dev")
 //    maven(url = "https://kotlin.bintray.com/ktor")
 }
+
 
 kotlin {
     jvm {
@@ -35,9 +40,12 @@ kotlin {
 //    }
 
     sourceSets {
+        val ktorVersion: String by rootProject.extra
+
         val commonMain by getting {
             dependencies {
-                api("io.ktor:ktor-client-core:2.0.0")
+                api(project(":ktornea-http"))
+                api(ktorModule("client-core"))
             }
         }
         val commonTest by getting {

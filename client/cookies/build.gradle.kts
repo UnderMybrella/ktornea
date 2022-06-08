@@ -1,4 +1,5 @@
 import dev.brella.kornea.gradle.korneaIO
+import dev.brella.kornea.gradle.korneaIOModule
 import dev.brella.kornea.gradle.mavenBrella
 import dev.brella.kornea.gradle.projectFrom
 
@@ -55,7 +56,7 @@ kotlin {
                 api(projectFrom("ktornea", "client", "core"))
                 implementation("org.jetbrains.kotlinx:atomicfu:0.17.1")
 
-                implementation(korneaIO("5.5.1-alpha"))
+                implementation(korneaIOModule())
             }
         }
         val commonTest by getting {
