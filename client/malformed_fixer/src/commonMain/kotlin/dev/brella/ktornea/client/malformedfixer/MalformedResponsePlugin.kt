@@ -8,11 +8,11 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import io.ktor.utils.io.*
 
-public typealias MalformedResponseFilter = PipelineContext<HttpResponse, Unit>.(HttpResponse) -> MalformedRedirectPlugin.Plugin.MalformBoolean
+public typealias MalformedResponseFilter = PipelineContext<HttpResponse, Unit>.(HttpResponse) -> MalformedResponsePlugin.Plugin.MalformBoolean
 public typealias MalformedResponseTransformResponse = PipelineContext<HttpResponse, Unit>.(HttpResponse) -> HttpResponse?
 public typealias MalformedResponseTransformResponseBody = PipelineContext<HttpResponse, Unit>.(HttpResponse) -> Any?
 
-public class MalformedRedirectPlugin private constructor(
+public class MalformedResponsePlugin private constructor(
     private val filter: MalformedResponseFilter?,
     private val transformResponse: MalformedResponseTransformResponse?,
     private val transformResponseBody: MalformedResponseTransformResponseBody?,
@@ -24,14 +24,14 @@ public class MalformedRedirectPlugin private constructor(
         public var transformResponseBody: MalformedResponseTransformResponseBody? = null
     }
 
-    public companion object Plugin : HttpClientPlugin<Config, MalformedRedirectPlugin> {
+    public companion object Plugin : HttpClientPlugin<Config, MalformedResponsePlugin> {
 
-        override val key: AttributeKey<MalformedRedirectPlugin> = AttributeKey("MalformedRedirect")
+        override val key: AttributeKey<MalformedResponsePlugin> = AttributeKey("MalformedRedirect")
 
-        override fun prepare(block: Config.() -> Unit): MalformedRedirectPlugin {
+        override fun prepare(block: Config.() -> Unit): MalformedResponsePlugin {
             val config = Config()
             config.block()
-            return MalformedRedirectPlugin(
+            return MalformedResponsePlugin(
                 config.filterRequests,
                 config.transformResponse,
                 config.transformResponseBody
@@ -39,7 +39,7 @@ public class MalformedRedirectPlugin private constructor(
         }
 
         @OptIn(InternalAPI::class)
-        override fun install(plugin: MalformedRedirectPlugin, scope: HttpClient) {
+        override fun install(plugin: MalformedResponsePlugin, scope: HttpClient) {
             scope.receivePipeline.intercept(HttpReceivePipeline.Before) { response ->
                 var malformed = MalformBoolean.YES
                 plugin.filter?.let { filter -> malformed = filter(response) }
