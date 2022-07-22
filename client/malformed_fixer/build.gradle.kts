@@ -1,20 +1,19 @@
-import dev.brella.kornea.gradle.korneaErrorsModule
+import dev.brella.kornea.gradle.korneaIO
+import dev.brella.kornea.gradle.mavenBrella
 import dev.brella.kornea.gradle.projectFrom
-import dev.brella.kornea.gradle.versioned
 
 plugins {
     kotlin("multiplatform")
-    id("dev.brella.kornea")
 }
 
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.2.0-alpha"
+version = "1.0.0-alpha"
 
 repositories {
     mavenCentral()
-    maven(url = "https://maven.brella.dev")
+    mavenBrella()
 //    maven(url = "https://kotlin.bintray.com/ktor")
 }
 
@@ -49,9 +48,9 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
+//                api(project)
+//                api(projectFrom("client", "core"))
                 api(projectFrom("ktornea", "client", "core"))
-
-                implementation(korneaErrorsModule())
             }
         }
         val commonTest by getting {
