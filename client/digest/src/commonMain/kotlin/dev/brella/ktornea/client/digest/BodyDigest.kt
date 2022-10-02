@@ -10,14 +10,54 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlin.coroutines.CoroutineContext
 
-public typealias BodyDigestChunkedListener = suspend (buffer: ByteArray, offset: Int, len: Int) -> Unit
-public typealias BodyDigestFinishedListener = suspend HttpRequestBuilder.() -> Unit
 public typealias BodyDigestCacheConstructor = PipelineContext<Any, HttpRequestBuilder>.(OutgoingContent, CoroutineContext) -> DigestCache
 
-public data class BodyDigestListener(
-    val chunkedListener: BodyDigestChunkedListener? = null,
-    val finishedListener: BodyDigestFinishedListener? = null,
-)
+public interface BodyDigestListener {
+    public companion object {
+        public operator fun invoke(
+            begin: suspend PipelineContext<Any, HttpRequestBuilder>.(content: OutgoingContent) -> Boolean = { true },
+            update: suspend (buffer: ByteArray, offset: Int, length: Int) -> Unit = { _, _, _ -> },
+            end: suspend PipelineContext<Any, HttpRequestBuilder>.() -> Unit = { },
+        ): BodyDigestListener =
+            Base(begin, update, end)
+    }
+
+    private data class Base(
+        val begin: suspend PipelineContext<Any, HttpRequestBuilder>.(content: OutgoingContent) -> Boolean = { true },
+        val update: suspend (buffer: ByteArray, offset: Int, length: Int) -> Unit = { _, _, _ -> },
+        val end: suspend PipelineContext<Any, HttpRequestBuilder>.() -> Unit = { },
+    ) : BodyDigestListener {
+        override suspend fun PipelineContext<Any, HttpRequestBuilder>.begin(content: OutgoingContent): Boolean =
+            begin.invoke(this, content)
+
+        override suspend fun update(buffer: ByteArray, offset: Int, length: Int) =
+            update.invoke(buffer, offset, length)
+
+        override suspend fun PipelineContext<Any, HttpRequestBuilder>.end() =
+            end.invoke(this)
+    }
+
+    public suspend fun PipelineContext<Any, HttpRequestBuilder>.begin(content: OutgoingContent): Boolean {
+        return true
+    }
+
+    public suspend fun update(buffer: ByteArray, offset: Int, length: Int) {
+
+    }
+
+    public suspend fun PipelineContext<Any, HttpRequestBuilder>.end() {
+
+    }
+}
+
+private suspend inline fun BodyDigestListener.begin(
+    context: PipelineContext<Any, HttpRequestBuilder>,
+    content: OutgoingContent,
+): Boolean =
+    context.begin(content)
+
+private suspend inline fun BodyDigestListener.end(context: PipelineContext<Any, HttpRequestBuilder>) =
+    context.end()
 
 @KtorDsl
 public class BodyDigest {
@@ -35,26 +75,34 @@ public class BodyDigest {
             val digestContentPhase = PipelinePhase("DigestContent")
             scope.requestPipeline.insertPhaseBefore(reference = HttpRequestPipeline.Send, phase = digestContentPhase)
             scope.requestPipeline.intercept(digestContentPhase) { content ->
+                if (content !is OutgoingContent) return@intercept
+
                 val localConfig = context.attributes
                     .getOrNull(configKey)
 
                 if (plugin.listeners.isEmpty() && localConfig?.listeners.isNullOrEmpty()) return@intercept
 
                 val digestContent = (localConfig?.cacheConstructor ?: plugin.cacheConstructor)
-                    ?.invoke(this, content as OutgoingContent, context.executionContext)
-                    ?: MemoryDigestCache(content as OutgoingContent, context.executionContext)
+                    ?.invoke(this, content, context.executionContext)
+                    ?: MemoryDigestCache(content, context.executionContext)
 
-                plugin.listeners.forEach { listeners ->
-                    listeners.chunkedListener?.let { digestContent.digest(it) }
-                    listeners.finishedListener?.invoke(context)
+                plugin.listeners.forEach { listener ->
+                    if (listener.begin(this, digestContent.body())) {
+                        digestContent.digest(listener::update)
+
+                        listener.end(this)
+                    }
                 }
 
-                localConfig?.listeners?.forEach { listeners ->
-                    listeners.chunkedListener?.let { digestContent.digest(it) }
-                    listeners.finishedListener?.invoke(context)
+                localConfig?.listeners?.forEach { listener ->
+                    if (listener.begin(this, digestContent.body())) {
+                        digestContent.digest(listener::update)
+
+                        listener.end(this)
+                    }
                 }
 
-                proceedWith(digestContent)
+                proceedWith(digestContent.body())
             }
         }
     }
