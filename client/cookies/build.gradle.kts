@@ -29,12 +29,11 @@ kotlin {
             useJUnit()
         }
     }
-    js(BOTH) {
+    js(IR) {
         browser {
             testTask {
                 useKarma {
                     useChromeHeadless()
-                    webpackConfig.cssSupport.enabled = true
                 }
             }
         }

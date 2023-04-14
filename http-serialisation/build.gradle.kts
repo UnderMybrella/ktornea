@@ -1,9 +1,9 @@
-import dev.brella.kornea.gradle.korneaIO
-import dev.brella.kornea.gradle.mavenBrella
-import dev.brella.kornea.gradle.projectFrom
+import dev.brella.kornea.gradle.kotlinxSerialisationModules
+import dev.brella.kornea.gradle.versioned
 
 plugins {
     kotlin("multiplatform")
+    kotlin("plugin.serialization")
 }
 
 apply(plugin = "maven-publish")
@@ -13,7 +13,7 @@ version = "1.0.0-alpha"
 
 repositories {
     mavenCentral()
-    mavenBrella()
+    maven(url = "https://maven.brella.dev")
 //    maven(url = "https://kotlin.bintray.com/ktor")
 }
 
@@ -21,9 +21,6 @@ kotlin {
     jvm {
         compilations.all {
             kotlinOptions.jvmTarget = "1.8"
-        }
-        testRuns["test"].executionTask.configure {
-            useJUnit()
         }
     }
     js(IR) {
@@ -47,30 +44,16 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-//                api(project)
-//                api(projectFrom("client", "core"))
-                api(projectFrom("ktornea", "client", "core"))
-            }
-        }
-        val commonTest by getting {
-            dependencies {
-                implementation(kotlin("test-common"))
-                implementation(kotlin("test-annotations-common"))
+                kotlinxSerialisationModules {
+                    implementation(core())
+                }
+
+                api(project(":ktornea-http"))
+                implementation(versioned("dev.brella:kornea-serialisation-core", "kornea-serialisation-core"))
             }
         }
         val jvmMain by getting {
             dependencies {
-            }
-        }
-        val jvmTest by getting {
-            dependencies {
-                implementation(kotlin("test-junit"))
-            }
-        }
-        val jsMain by getting
-        val jsTest by getting {
-            dependencies {
-                implementation(kotlin("test-js"))
             }
         }
 

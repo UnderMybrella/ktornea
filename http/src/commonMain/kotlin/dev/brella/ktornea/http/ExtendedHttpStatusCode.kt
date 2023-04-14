@@ -3,7 +3,7 @@ package dev.brella.ktornea.http
 import io.ktor.http.*
 
 public object ExtendedHttpStatusCode {
-    public val IAmATeapot: HttpStatusCode = HttpStatusCode(413, "I'm A Teapot")
+    public val IAmATeapot: HttpStatusCode = HttpStatusCode(418, "I'm A Teapot")
     public val EnhanceYourCalm: HttpStatusCode = HttpStatusCode(420, "Enhance Your Calm")
     public val ReservedForWebDAV: HttpStatusCode = HttpStatusCode(425, "Reserved for WebDAV")
     public val PreconditionRequired: HttpStatusCode = HttpStatusCode(428, "Precondition Required")
@@ -20,6 +20,33 @@ public object ExtendedHttpStatusCode {
     public val NotExtended: HttpStatusCode = HttpStatusCode(510, "Not Extended")
     public val NetworkReadTimeoutError: HttpStatusCode = HttpStatusCode(598, "Network Read Timeout Error")
     public val NetworkConnectTimeoutError: HttpStatusCode = HttpStatusCode(599, "Network Connect Timeout Error")
+
+    public val extendedStatusCodes: List<HttpStatusCode> = listOf(
+        IAmATeapot,
+        EnhanceYourCalm,
+        ReservedForWebDAV,
+        PreconditionRequired,
+        NoResponse,
+        RetryWith,
+        BlockedByWindowsParentalControls,
+        UnavailableForLegalReasons,
+        ClientClosedRequest,
+
+        LoopDetected,
+        BandwidthLimitExceeded,
+        NotExtended,
+        NetworkReadTimeoutError,
+        NetworkConnectTimeoutError,
+    )
+
+    public val extendedStatusCodesMap: Map<Int, HttpStatusCode> = extendedStatusCodes.associateBy { it.value }
+
+    public val statusCodesMap: Map<Int, HttpStatusCode> = buildMap {
+        putAll(extendedStatusCodesMap)
+        HttpStatusCode.allStatusCodes.associateByTo(this) { it.value }
+    }
+
+    public val allStatusCodes: List<HttpStatusCode> = statusCodesMap.values.toList()
 }
 
 public val HttpStatusCode.IAmATeapot: HttpStatusCode get() = ExtendedHttpStatusCode.IAmATeapot

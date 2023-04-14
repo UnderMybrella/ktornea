@@ -1,7 +1,9 @@
 package dev.brella.ktornea.results
 
 import dev.brella.kornea.errors.common.KorneaResult
+import dev.brella.kornea.errors.common.map
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -12,6 +14,12 @@ public inline fun wrapAndCatchResponse(response: () -> HttpResponse): KorneaResu
 public inline fun wrapInResult(response: HttpResponse): KorneaResult<HttpResponse> =
     if (response.status.isSuccess()) KorneaResult.success(response)
     else HttpResult.of(response)
+
+public suspend inline fun <reified T> KorneaResult<HttpResponse>.mapBody(): KorneaResult<T> =
+    map { it.body<T>() }
+
+public suspend inline fun <reified T> KorneaResult<HttpResponse>.mapBodyErrorPayload(): KorneaResult<HttpResponse> =
+    switchIfHttpResult { err -> KorneaResult.failure(err.withPayload(err.response.body<T>())) }
 
 public suspend inline fun HttpClient.requestResult(builder: HttpRequestBuilder.() -> Unit): KorneaResult<HttpResponse> =
     wrapAndCatchResponse { request(builder) }

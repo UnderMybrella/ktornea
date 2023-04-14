@@ -7,7 +7,7 @@ plugins {
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.0.0-alpha"
+version = "1.1.0-alpha"
 
 repositories {
     mavenCentral()
@@ -21,12 +21,11 @@ kotlin {
             kotlinOptions.jvmTarget = "1.8"
         }
     }
-    js(BOTH) {
+    js(IR) {
         browser {
             testTask {
                 useKarma {
                     useChromeHeadless()
-                    webpackConfig.cssSupport.enabled = true
                 }
             }
         }
@@ -43,11 +42,19 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(versioned("io.ktor:ktor-http", "ktor"))
+                ktorModules {
+                    api(http())
+                }
             }
         }
         val jvmMain by getting {
             dependencies {
+            }
+        }
+
+        val jsMain by getting {
+            dependencies {
+                implementation("org.jetbrains.kotlin:kotlinx-atomicfu-runtime:1.8.20")
             }
         }
 

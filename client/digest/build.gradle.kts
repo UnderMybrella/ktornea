@@ -26,12 +26,11 @@ kotlin {
             useJUnit()
         }
     }
-    js(BOTH) {
+    js(IR) {
         browser {
             testTask {
                 useKarma {
                     useChromeHeadless()
-                    webpackConfig.cssSupport.enabled = true
                 }
             }
         }
@@ -78,7 +77,6 @@ kotlin {
         all {
             languageSettings.apply {
                 optIn("kotlin.RequiresOptIn")
-                explicitApi()
             }
         }
 //        val nativeMain by getting

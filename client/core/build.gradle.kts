@@ -1,7 +1,3 @@
-import dev.brella.kornea.gradle.ktorModule
-import dev.brella.kornea.gradle.projectFrom
-import dev.brella.kornea.gradle.versioned
-
 plugins {
     kotlin("multiplatform")
 }
@@ -24,7 +20,7 @@ kotlin {
             kotlinOptions.jvmTarget = "1.8"
         }
     }
-    js(BOTH) {
+    js(IR) {
         browser {
         }
         nodejs {
@@ -40,12 +36,15 @@ kotlin {
 //    }
 
     sourceSets {
-        val ktorVersion: String by rootProject.extra
-
         val commonMain by getting {
             dependencies {
                 api(project(":ktornea-http"))
-                api(ktorModule("client-core"))
+
+                ktorModules {
+                    clientModules {
+                        api(core())
+                    }
+                }
             }
         }
         val commonTest by getting {

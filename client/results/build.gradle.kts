@@ -10,7 +10,7 @@ plugins {
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.2.0-alpha"
+version = "2.0.0-alpha"
 
 repositories {
     mavenCentral()
@@ -27,12 +27,11 @@ kotlin {
             useJUnit()
         }
     }
-    js(BOTH) {
+    js(IR) {
         browser {
             testTask {
                 useKarma {
                     useChromeHeadless()
-                    webpackConfig.cssSupport.enabled = true
                 }
             }
         }
