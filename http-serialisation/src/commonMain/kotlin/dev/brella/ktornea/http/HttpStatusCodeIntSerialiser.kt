@@ -4,7 +4,7 @@ import dev.brella.kornea.serialisation.core.common.KorneaNumericalEnumLikeSerial
 import io.ktor.http.*
 
 public object HttpStatusCodeIntSerialiser : KorneaNumericalEnumLikeSerialiser.MapBased.AsInt<HttpStatusCode>(
-    ExtendedHttpStatusCode.extendedStatusCodesMap,
+    ExtendedHttpStatusCode.statusCodesMap,
     "dev.brella.ktornea.http.HttpStatusCodeIntSerialiser",
     { HttpStatusCode(it, "(Unknown)") },
     HttpStatusCode::value
