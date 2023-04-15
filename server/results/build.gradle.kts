@@ -10,7 +10,7 @@ plugins {
 apply(plugin = "maven-publish")
 
 group = "dev.brella"
-version = "1.0.1-indev"
+version = "1.0.2-indev"
 
 repositories {
     mavenCentral()
