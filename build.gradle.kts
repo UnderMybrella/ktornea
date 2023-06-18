@@ -38,8 +38,9 @@ configure(subprojects) {
 
 defineVersions {
     ktor("2.2.4")
+    kotlinxSerialisation("1.5.1")
     korneaErrors("4.0.1-alpha")
     korneaIO("5.5.1-alpha")
 
-    "kornea-serialisation-core" .. "2.1.1-alpha"
+    "kornea-serialisation-core" .. "2.2.0-alpha"
 }
